@@ -4,7 +4,7 @@
 // the build tag selects the implementation.
 package env
 
-import "github.com/tinywasm/fmt"
+import "webtyp.com/fmt"
 
 // Get returns the value of key or "" if unset.
 func Get(key string) string {

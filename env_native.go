@@ -5,9 +5,9 @@ package env
 import (
 	"os"
 
-	"github.com/tinywasm/fmt"
-	"github.com/tinywasm/keyring"
-	keyringauto "github.com/tinywasm/keyring/auto"
+	"webtyp.com/fmt"
+	"webtyp.com/keyring"
+	keyringauto "webtyp.com/keyring/auto"
 )
 
 // resolveIfReference returns raw unchanged unless it is exactly

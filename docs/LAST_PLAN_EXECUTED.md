@@ -1,5 +1,5 @@
 ---
-PLAN: "feat: resolve the keyring:// .env marker through tinywasm/keyring (native only)"
+PLAN: "feat: resolve the keyring:// .env marker through webtyp/keyring (native only)"
 EXECUTOR: jules
 REVIEWER: none
 ---
@@ -8,19 +8,19 @@ REVIEWER: none
 
 # Plan — one resolution point for every consumer of `env.Get`/`env.Lookup`
 
-## Part of a multi-repo wave — depends on `tinywasm/keyring` publishing first
+## Part of a multi-repo wave — depends on `webtyp/keyring` publishing first
 
 This is one piece of `KEYRING_DOTENV_MASTER_PLAN.md` (orchestrator:
-`github.com/tinywasm/app-releases`, `docs/KEYRING_DOTENV_MASTER_PLAN.md`).
+`webtyp.com/app-releases`, `docs/KEYRING_DOTENV_MASTER_PLAN.md`).
 
-**Do not dispatch this plan until `github.com/tinywasm/keyring` has published**
+**Do not dispatch this plan until `webtyp.com/keyring` has published**
 `Scheme`/`IsReference` (root package) and `auto.OpenForModule` (its own
 `docs/PLAN.md` in the same wave).
 
 ## Why
 
 A `.env` value that is a credential must never sit in the file in plaintext —
-the convention is `KEY=keyring://`, and `tinywasm/keyring` now owns that
+the convention is `KEY=keyring://`, and `webtyp/keyring` now owns that
 marker (`keyring.Scheme`/`keyring.IsReference`) and knows how to resolve it
 for "whatever Go module the current project is"
 (`keyring/auto.OpenForModule`). This package is the **one** place every
@@ -28,7 +28,7 @@ consumer (`veltylabs/misitio`, `veltylabs/iam`, any future project) already
 calls to read configuration — resolving the marker here means no consumer
 changes a single line of its own code; `env.Get("IAM_CLIENT_SECRET")` just
 starts returning the real value once it is stored in the keyring, regardless
-of whether the process was launched by `tinywasm -mcp`, `tinywasm -tui`, or a
+of whether the process was launched by `webtyp -mcp`, `webtyp -tui`, or a
 bare `go run`.
 
 **This must never reach a Cloudflare Worker build.** `env_wasm.go`'s `Lookup`
@@ -46,9 +46,9 @@ Add one unexported helper, and call it from both existing lookup paths:
 import (
 	"os"
 
-	"github.com/tinywasm/fmt"
-	"github.com/tinywasm/keyring"
-	keyringauto "github.com/tinywasm/keyring/auto"
+	"webtyp.com/fmt"
+	"webtyp.com/keyring"
+	keyringauto "webtyp.com/keyring/auto"
 )
 
 // resolveIfReference returns raw unchanged unless it is exactly
@@ -122,8 +122,8 @@ secret is a silent misconfiguration, worse than failing loudly):
 import (
 	"syscall/js"
 
-	"github.com/tinywasm/fmt"
-	"github.com/tinywasm/keyring"
+	"webtyp.com/fmt"
+	"webtyp.com/keyring"
 )
 
 func Lookup(key string) (string, bool) {
@@ -147,7 +147,7 @@ func Lookup(key string) (string, bool) {
 }
 ```
 
-`github.com/tinywasm/keyring` (root package only — never `keyring/auto`,
+`webtyp.com/keyring` (root package only — never `keyring/auto`,
 which pulls in OS-specific backends this build must not need) is a plain,
 portable leaf package with no wasm-incompatible code — confirm with `GOOS=js
 GOARCH=wasm go build ./...` in this repo before considering this stage done.
@@ -155,7 +155,7 @@ GOARCH=wasm go build ./...` in this repo before considering this stage done.
 ## Test hygiene — these tests touch the real OS keychain
 
 `auto.OpenForModule` has no injectable fake backend (by design — see
-`tinywasm/keyring`'s own plan in this wave: `OpenKeyring`/`OpenForModule`
+`webtyp/keyring`'s own plan in this wave: `OpenKeyring`/`OpenForModule`
 always probe the real platform provider). Every new test in this plan that
 calls it must:
 
@@ -176,7 +176,7 @@ calls it must:
 
 - **`keyring/auto` (the OS-backend-selecting package) is imported only from
   `env_native.go`**, never from `env_wasm.go` — that file imports the root
-  `github.com/tinywasm/keyring` package alone, for `IsReference` only.
+  `webtyp.com/keyring` package alone, for `IsReference` only.
 - **Do not** cache the resolved keyring value across calls — `Lookup` already
   re-reads `.env`/`os.LookupEnv` on every call today (no caching exists), and
   this plan does not change that contract. If a caller wants to avoid
@@ -222,8 +222,8 @@ predictable `"keyring-ref-test"` instead of failing with
 
 ## Out of scope
 
-`tinywasm/app`'s interactive section for actually storing a missing secret
+`webtyp/app`'s interactive section for actually storing a missing secret
 is a separate plan in this wave, dispatched after this one and after
-`tinywasm/keyring` publish (this plan and that one both depend on
-`tinywasm/keyring`, not on each other). No consumer project
+`webtyp/keyring` publish (this plan and that one both depend on
+`webtyp/keyring`, not on each other). No consumer project
 (`veltylabs/misitio`, etc.) is touched here.

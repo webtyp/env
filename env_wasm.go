@@ -5,8 +5,8 @@ package env
 import (
 	"syscall/js"
 
-	"github.com/tinywasm/fmt"
-	"github.com/tinywasm/keyring"
+	"webtyp.com/fmt"
+	"webtyp.com/keyring"
 )
 
 // Lookup reads from Cloudflare's runtime context (context.env) via syscall/js.

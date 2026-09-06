@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	keyringauto "github.com/tinywasm/keyring/auto"
+	keyringauto "webtyp.com/keyring/auto"
 )
 
 func writeGoMod(t *testing.T, dir, module string) {
