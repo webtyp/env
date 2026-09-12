@@ -5,6 +5,7 @@ package env
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -52,6 +53,29 @@ func TestRequire_FoundAndMissing(t *testing.T) {
 	os.Unsetenv("ENV_REQUIRE_MISSING_123")
 	if _, err := Require("ENV_REQUIRE_MISSING_123"); err == nil {
 		t.Error("Require missing should error")
+	}
+}
+
+func TestRequire_MissingErrorNamesEnvPath(t *testing.T) {
+	os.Unsetenv("ENV_REQUIRE_DIAGNOSTIC_MISSING")
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	os.Chdir(dir)
+	defer os.Chdir(orig)
+
+	_, err := Require("ENV_REQUIRE_DIAGNOSTIC_MISSING")
+	if err == nil {
+		t.Fatal("Require missing should error")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "ENV_REQUIRE_DIAGNOSTIC_MISSING") {
+		t.Errorf("error %q should name the missing key", msg)
+	}
+	if !strings.Contains(msg, ".env") {
+		t.Errorf("error %q should name the .env path it checked", msg)
+	}
+	if !strings.Contains(msg, dir) {
+		t.Errorf("error %q should name the working directory %q it resolved .env against", msg, dir)
 	}
 }
 

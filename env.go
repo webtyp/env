@@ -4,8 +4,6 @@
 // the build tag selects the implementation.
 package env
 
-import "webtyp.com/fmt"
-
 // Get returns the value of key or "" if unset.
 func Get(key string) string {
 	v, _ := Lookup(key)
@@ -18,12 +16,4 @@ func GetOr(key, fallback string) string {
 		return v
 	}
 	return fallback
-}
-
-// Require returns the value of key or an error if unset.
-func Require(key string) (string, error) {
-	if v, ok := Lookup(key); ok {
-		return v, nil
-	}
-	return "", fmt.Err(key + " is not set")
 }
