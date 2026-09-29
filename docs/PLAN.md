@@ -23,7 +23,7 @@ reads `DATABASE_URL is not set`, checks the `.env` file, sees the key is
 right there, and has no way to tell from the message alone that the process
 reading it has a different working directory than they assume.
 
-`CONSTRUCTION_HARNESS.md` principle 6: "fail at compile time, not at
+the [`api-design` skill](https://github.com/webtyp/devskills/blob/main/skills/api-design/SKILL.md), rule "Fail at compile time": "fail at compile time, not at
 runtime... loud development diagnostic" over a silent/uninformative one.
 This closes that gap for the one message every consumer of a required env
 var eventually sees.
