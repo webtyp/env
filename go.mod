@@ -1,6 +1,6 @@
 module webtyp.com/env
 
-go 1.25.2
+go 1.26.8
 
 require (
 	webtyp.com/fmt v1.0.0
@@ -11,5 +11,5 @@ require (
 	webtyp.com/await v0.1.2 // indirect
 	webtyp.com/base64 v0.0.6 // indirect
 	webtyp.com/dbus v0.1.1 // indirect
-	webtyp.com/webauthn v0.1.5 // indirect
+	webtyp.com/webauthn v0.1.6 // indirect
 )
