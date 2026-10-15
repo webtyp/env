@@ -2,6 +2,8 @@
 PLAN: "feat!: Lookup reads the project keyring after the environment and .env; the keyring:// marker is gone"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 7810215043722152745
 ---
 
 > Read AGENTS.md at the repo root before any change.
