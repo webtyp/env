@@ -2,8 +2,10 @@
 PLAN: "feat!: Lookup reads the project keyring after the environment and .env; the keyring:// marker is gone"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 7810215043722152745
+PR: https://github.com/webtyp/env/pull/1
+REVIEWED_COMMIT: b185533d59c63e13b5fd88c0bb89ed9859c592a6
 ---
 
 > Read AGENTS.md at the repo root before any change.

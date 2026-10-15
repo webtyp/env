@@ -6,7 +6,6 @@ import (
 	"syscall/js"
 
 	"webtyp.com/fmt"
-	"webtyp.com/keyring"
 )
 
 // Lookup reads from Cloudflare's runtime context (context.env) via syscall/js.
@@ -24,11 +23,7 @@ func Lookup(key string) (string, bool) {
 	if val.IsNull() || val.IsUndefined() {
 		return "", false
 	}
-	v := val.String()
-	if keyring.IsReference(v) {
-		return "", false // the marker is a local-dev convention; never a real Worker value
-	}
-	return v, true
+	return val.String(), true
 }
 
 // Set is not available on wasm — platform env vars are not writable at runtime.
