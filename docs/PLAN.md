@@ -1,105 +1,97 @@
 ---
-PLAN: "fix: Require names the .env path it checked, so a missing key is self-diagnosing"
+PLAN: "feat!: Lookup reads the project keyring after the environment and .env; the keyring:// marker is gone"
 EXECUTOR: jules
 REVIEWER: none
 ---
 
-> This plan is dispatched via the CodeJob workflow. See skill: agents-workflow.
+> Read AGENTS.md at the repo root before any change.
 
-# Plan — a loud diagnostic instead of a bare "$KEY is not set"
+# Plan — env: secrets come from the keyring, never from a `.env` marker
 
-Part of `DOTENV_VISIBILITY_MASTER_PLAN.md` (orchestrator: `webtyp.com/docs`,
-`docs/DOTENV_VISIBILITY_MASTER_PLAN.md`). **No dependencies — dispatch any
-time, independent of the other two modules in that wave.**
+Part of the "Despliegue guiado" wave (`https://github.com/webtyp/docs/blob/main/DEPLOY_WIZARD_MASTER_PLAN.md`,
+decision D15). A secret is never written in `.env`, not even as a placeholder. Today a project had
+to write `KEY=keyring://` in `.env` for `env` to look the key up in the keyring
+(`env_native.go:19-35`). From now on the project declares its secrets in `config/deploy.go`
+(read by `webtyp/app`, not by this module) and `env` simply looks in one more place, in a fixed
+order.
 
-## Why
+No project uses the marker today (`grep -r "=keyring://"` over every `.env` → empty), so nothing
+migrates.
 
-`env.Require` (`env.go:24-29`) returns `fmt.Err(key + " is not set")` when a
-key is missing. That message is correct but incomplete: it never says
-*where* it looked, so when the real cause is "looked in the wrong directory"
-(the exact bug `DOTENV_VISIBILITY_MASTER_PLAN.md` diagnoses in
-`webtyp/gorun`/`webtyp/server`) the error gives no hint at all — a junior
-reads `DATABASE_URL is not set`, checks the `.env` file, sees the key is
-right there, and has no way to tell from the message alone that the process
-reading it has a different working directory than they assume.
+## Tools
 
-the [`api-design` skill](https://github.com/webtyp/devskills/blob/main/skills/api-design/SKILL.md), rule "Fail at compile time": "fail at compile time, not at
-runtime... loud development diagnostic" over a silent/uninformative one.
-This closes that gap for the one message every consumer of a required env
-var eventually sees.
-
-## What to change
-
-`env/env_native.go` — `Lookup` currently does:
-
-```go
-data, err := os.ReadFile(defaultDotEnvPath)
-if err != nil {
-	return "", false
-}
+```bash
+go install webtyp.com/devflow/cmd/gotest@latest
 ```
 
-`Lookup` only returns `(string, bool)` — it has no path to report through.
-Change `env.go`'s `Require` instead, so the behavior change is scoped to the
-one function that already owns error construction, without touching
-`Lookup`'s signature or its callers (`Get`, `GetOr` keep working exactly as
-today):
+## Design gate
 
-```go
-// Require returns the value of key or an error if unset.
-func Require(key string) (string, error) {
-	if v, ok := Lookup(key); ok {
-		return v, nil
-	}
-	cwd, _ := os.Getwd()
-	return "", fmt.Err(key + " is not set (checked the process environment and " + defaultDotEnvPath + " in " + cwd + ")")
-}
-```
+1. **Prior art.** direnv / dotenv load a file into the environment; Kamal 2 and 1Password CLI
+   (`op run`) resolve secrets from a vault at process start; Rails credentials read an encrypted
+   store after `ENV`. All define one lookup order. Here: environment → `.env` → the project's
+   keyring.
+2. **Names.** No new exported names.
+3. **Ledger.** Concepts −1 (the `keyring://` marker). Ways to provide a secret locally: marker in
+   `.env` + keyring → keyring only.
+4. **Where.** In `env`: it already owns "where does a value come from".
+5. **Deletes.** `resolveIfReference` and every use of `keyring.IsReference` / `keyring.Scheme`.
 
-This needs `defaultDotEnvPath` (declared in `env_native.go`, same package,
-already visible) and a new `"os"` import in `env.go` for `os.Getwd()` — `os`
-is `!wasm`-only, but so is this whole reasoning; check whether `env.go` is
-built for both `wasm` and `!wasm` (it has no build tag today, meaning it is
-shared). **If `env.go` compiles under the `wasm` build tag, `os.Getwd()`
-will not exist there** — in that case, split `Require` into two files
-instead:
+## Stage 1 — native lookup order
 
-- `require_native.go` (`//go:build !wasm`): the version above, with
-  `os.Getwd()`.
-- `require_wasm.go` (`//go:build wasm`): keep today's exact message,
-  `fmt.Err(key + " is not set")` — wasm has no meaningful CWD to report,
-  and no `.env` file fallback either (per the package doc comment in
-  `env.go:1-4`, wasm reads Cloudflare's `context.env`).
+`env_native.go`:
 
-Check `env_wasm.go` first to confirm whether `wasm` even has a working
-`os.Getwd()` (TinyGo's `syscall/js` target may or may not) before assuming
-the split is required — if `os.Getwd()` compiles fine under the `wasm`
-build tag in this codebase's TinyGo target, keep `Require` in the single
-shared `env.go` and skip the split.
+- Delete `resolveIfReference`.
+- `Lookup(key)`: process environment → `.env` in the working directory → keyring scoped to the
+  module of the working directory (`keyringauto.OpenForModule(".")`, then `kr.Get(key)`). The first
+  place that has the key wins and its value is returned as is. A keyring that cannot be opened, or
+  that lacks the key, means "not found" (`"", false`), exactly as today.
+- `LookupAt(key, path)`: same order, with `.env` read from `path` and the keyring scoped to the
+  module found from `filepath.Dir(path)`.
+- Extract the shared ".env file then keyring" part into one unexported function used by both
+  (today the `.env` parsing is duplicated in `Lookup` and `LookupAt`; it must exist once).
+- `require_native.go`: the error message lists the three places checked:
+  `key + " is not set (checked the process environment, " + path + " in " + cwd + ", and the keyring of this module)"`
+  as a named constant format.
 
-## Tests
+## Stage 2 — wasm
 
-`env/env_test.go` (native) — add a case: unset the key in both process env
-and a temp-dir `.env`, call `Require`, assert the returned error's message
-contains both the key name and `.env` (exact CWD value is environment-
-dependent, so assert on substring, not full equality).
+`env_wasm.go`: delete the `keyring.IsReference` check and the `webtyp.com/keyring` import. A Worker
+reads only its bindings.
 
-If the wasm split above turns out to be necessary, `env_wasm_test.go` keeps
-asserting today's exact message for that build — do not change the wasm
-test's expected string.
+## Stage 3 — tests
+
+Replace `keyring_reference_test.go` with `tests/lookup_order_test.go` (package `tests`, external),
+reusing its helpers (temporary module dir with `go.mod`, `os.Chdir`, `keyringauto.OpenForModule`).
+If the platform keyring is unavailable in the test environment, skip with `t.Skip` and the exact
+reason, as the current test does.
+
+| Branch | Test |
+|---|---|
+| O1 | key in the process environment, `.env` and keyring → environment value |
+| O2 | key in `.env` and keyring → `.env` value |
+| O3 | key only in the keyring → keyring value |
+| O4 | key nowhere → `"", false`; `Require` error names the three places |
+| O5 | `.env` line `KEY=keyring://` → returns the literal `keyring://` (no special meaning any more) |
+| O6 | `LookupAt` with a `.env` in another module dir reads that module's keyring |
+
+Move `env_test.go` and `env_wasm_test.go` to `tests/` only if they use exported API alone; leave
+them otherwise.
+
+## Stage 4 — docs
+
+`README.md`: the lookup order; remove every mention of `keyring://`. Add one line: secrets are
+declared in the project's `config/deploy.go` and typed in the `webtyp` wizard (link
+`https://github.com/webtyp/docs/blob/main/diagrams/DEPLOY_SECRETS_FLOW.md`).
+
+| Stage | Files |
+|---|---|
+| 1 | `env_native.go`, `require_native.go` |
+| 2 | `env_wasm.go`, `go.mod`, `go.sum` |
+| 3 | `tests/lookup_order_test.go` (new); delete `keyring_reference_test.go` |
+| 4 | `README.md` |
 
 ## Acceptance
 
-- `go test ./...` passes for both build tags (`go test .` and
-  `GOOS=js GOARCH=wasm go test .` — check the existing test invocation this
-  repo already uses for the wasm target, e.g. in a Makefile or CI config,
-  rather than guessing the flags).
-- A manual `Require("DOES_NOT_EXIST")` call in a throwaway `main.go` prints
-  a message naming both the key and a resolved directory path.
-
-## Stages
-
-| Stage | Files | Done when |
-|---|---|---|
-| 1 | `env.go` (or `require_native.go` + `require_wasm.go`, per the build-tag check above) | `Require`'s native error names the checked path |
-| 2 | `env_test.go` | new substring-matching test passes |
+- `gotest` green (native and wasm).
+- `grep -rn "IsReference\|keyring.Scheme\|keyring://" --include=*.go --include=*.md . | grep -v "tests/lookup_order_test.go"` → empty.
+- `git diff --stat main` lists every file of the stages table; only `keyring_reference_test.go` deleted.
