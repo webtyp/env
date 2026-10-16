@@ -4,7 +4,7 @@ go 1.26.8
 
 require (
 	webtyp.com/fmt v1.0.0
-	webtyp.com/keyring v0.2.4
+	webtyp.com/keyring v0.2.9
 )
 
 require (
