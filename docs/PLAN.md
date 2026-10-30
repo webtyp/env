@@ -2,6 +2,8 @@
 PLAN: "feat: KEY_FILE — read a secret from the file Docker mounts, before .env and the keyring"
 EXECUTOR: jules
 REVIEWER: none
+STATUS: running
+SESSION: 1610340303254169291
 ---
 
 > Read AGENTS.md at the repo root before any change.
