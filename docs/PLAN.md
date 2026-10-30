@@ -2,8 +2,10 @@
 PLAN: "feat: KEY_FILE — read a secret from the file Docker mounts, before .env and the keyring"
 EXECUTOR: jules
 REVIEWER: none
-STATUS: running
+STATUS: review
 SESSION: 1610340303254169291
+PR: https://github.com/webtyp/env/pull/2
+REVIEWED_COMMIT: 8c559818680fab09ee31a0d561c3ae51e73c3d74
 ---
 
 > Read AGENTS.md at the repo root before any change.
