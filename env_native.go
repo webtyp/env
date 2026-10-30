@@ -12,6 +12,27 @@ import (
 
 const defaultDotEnvPath = ".env"
 
+// fileSuffix names the variable that points to a file holding the value (Docker secrets).
+const fileSuffix = "_FILE"
+
+// lookupFile reads KEY from the file KEY_FILE names. found reports whether KEY_FILE is set;
+// a file that cannot be read is reported on stderr and gives ok == false.
+func lookupFile(key string) (value string, found, ok bool) {
+	path, found := os.LookupEnv(key + fileSuffix)
+	if !found {
+		return "", false, false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		os.Stderr.WriteString("env: " + key + fileSuffix + "=" + path + " cannot be read: " + err.Error() + "\n")
+		return "", true, false
+	}
+	v := string(data)
+	v = fmt.Convert(v).TrimSuffix("\n").String()
+	v = fmt.Convert(v).TrimSuffix("\r").String()
+	return v, true, true
+}
+
 func lookupEnvFileAndKeyring(key, path, moduleDir string) (string, bool) {
 	data, err := os.ReadFile(path)
 	if err == nil {
@@ -38,11 +59,15 @@ func lookupEnvFileAndKeyring(key, path, moduleDir string) (string, bool) {
 }
 
 // Lookup returns the value of key from the process environment, falling back
-// to a .env file in the working directory, and finally to the module's keyring.
+// to KEY_FILE in the process environment, then a .env file in the working
+// directory, and finally to the module's keyring.
 // The bool indicates if the key was found.
 func Lookup(key string) (string, bool) {
 	if v, ok := os.LookupEnv(key); ok {
 		return v, true
+	}
+	if v, found, ok := lookupFile(key); found {
+		return v, ok
 	}
 	return lookupEnvFileAndKeyring(key, defaultDotEnvPath, ".")
 }

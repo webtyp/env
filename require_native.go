@@ -9,13 +9,11 @@ import (
 )
 
 // Require returns the value of key or an error naming both the key and the
-// .env path checked, so a missing/misplaced key is self-diagnosing — the
-// process environment, defaultDotEnvPath (resolved against the current
-// working directory), and the module's keyring are the three places Lookup ever looks.
+// .env path checked, so a missing/misplaced key is self-diagnosing.
 func Require(key string) (string, error) {
 	if v, ok := Lookup(key); ok {
 		return v, nil
 	}
 	cwd, _ := os.Getwd()
-	return "", fmt.Err(key + " is not set (checked the process environment, " + defaultDotEnvPath + " in " + cwd + ", and the keyring of this module)")
+	return "", fmt.Err(key + " is not set (checked the process environment, " + key + fileSuffix + ", " + defaultDotEnvPath + " in " + cwd + ", and the keyring of this module)")
 }

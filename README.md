@@ -18,5 +18,6 @@ Low-level `.env` path override: `env.LookupAt("KEY", "/path/to/.env")`.
 
 Wasm target is Cloudflare Workers (`context.env`); other wasm targets get `""`.
 
-Lookup order on `!wasm` is: process environment → `.env` file in the directory → the module's keyring namespace.
+Lookup order on `!wasm` is: process environment → `KEY_FILE` in the process environment → `.env` file in the directory → the module's keyring namespace.
+Docker hands secrets to the container as files, so `KEY_FILE=/run/secrets/key` allows the app to read it without changes; if the file cannot be read, one line is written to standard error (`env: KEY_FILE=<path> cannot be read: <error>`).
 Secrets are declared in the project's `config/deploy.go` and typed in the `webtyp` wizard ([DEPLOY_SECRETS_FLOW](https://github.com/webtyp/docs/blob/main/diagrams/DEPLOY_SECRETS_FLOW.md)).
